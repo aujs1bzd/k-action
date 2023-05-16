@@ -3,15 +3,27 @@
   <style>
     canvas {
       border: 1px solid black;
+      width: 100%; // 幅を100%にする
+      height: 100%; // 高さを100%にする
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="800" height="600"></canvas>
+  <canvas id="canvas"></canvas>
   <script>
     // キャンバスとコンテキストを取得
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext("2d");
+
+    // キャンバスのサイズをウィンドウのサイズに合わせる
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // ウィンドウのサイズが変わったらキャンバスのサイズも変更する
+    window.addEventListener("resize", function() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
 
     // 画像と音声を読み込む
     var kouki = new Image();
