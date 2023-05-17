@@ -1,19 +1,20 @@
 <html>
-<meta name="apple-mobile-web-app-capable" content="yes">
+
 <head>
   <style>
     canvas {
       border: 1px solid black;
-      width: 100%; // 幅を100%にする
-      height: 100%; // 高さを100%にする
+      width: 100%;
+      /*幅を100%にする*/
+      height: 100%;
+      /*高さを100%にする*/
     }
   </style>
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="IMG_2363.png" />
 </head>
+
 <body>
-  <audio autoplay>
-  <source src="bb.mp3">
-</audio>
   <canvas id="canvas"></canvas>
   <script>
     // キャンバスとコンテキストを取得
@@ -25,7 +26,7 @@
     canvas.height = window.innerHeight;
 
     // ウィンドウのサイズが変わったらキャンバスのサイズも変更する
-    window.addEventListener("resize", function() {
+    window.addEventListener("resize", function () {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     });
@@ -59,29 +60,29 @@
       w: 100, // 幅
       h: 100, // 高さ
       speed: 5, // 移動速度
-      beam: null, // ビームのオブジェクト
+      beams: [], // ビームの配列
       beamSpeed: 10, // ビームの速度
       alive: true, // 生存フラグ
-      update: function() {
+      update: function () {
         // タッチパネルの場合はドラッグで移動する
         if ("ontouchstart" in window) {
-          canvas.addEventListener("touchmove", function(e) {
+          canvas.addEventListener("touchmove", function (e) {
             e.preventDefault();
             var touch = e.touches[0];
             player.x = touch.clientX - player.w / 2;
             player.y = touch.clientY - player.h / 2;
           });
-          canvas.addEventListener("touchstart", function(e) {
+          canvas.addEventListener("touchstart", function (e) {
             e.preventDefault();
             player.shoot();
           });
         } else {
           // マウスの場合はカーソルに追従する
-          canvas.addEventListener("mousemove", function(e) {
+          canvas.addEventListener("mousemove", function (e) {
             player.x = e.clientX - player.w / 2;
             player.y = e.clientY - player.h / 2;
           });
-          canvas.addEventListener("mousedown", function(e) {
+          canvas.addEventListener("mousedown", function (e) {
             player.shoot();
           });
         }
@@ -99,38 +100,53 @@
           player.y = canvas.height - player.h;
         }
         // ビームがあれば更新する
-        if (player.beam) {
-          player.beam.update();
+        for (var i = 0; i < this.beams.length; i++) {
+          var b = this.beams[i];
+          b.update();
+          // 生存フラグがfalseなら配列から削除する
+          if (!b.alive) {
+            this.beams.splice(i, 1);
+            i--;
+          }
         }
       },
-      draw: function() {
+      draw: function () {
         // プレイヤーの画像を描画する
         ctx.drawImage(kouki, player.x, player.y, player.w, player.h);
         // ビームがあれば描画する
-        if (player.beam) {
-          player.beam.draw();
+        for (var i = 0; i < this.beams.length; i++) {
+          var b = this.beams[i];
+          b.draw();
         }
       },
-      shoot: function() {
+      shoot: function () {
         // ビームがなければ生成する
-        if (!player.beam) {
-          player.beam = {
+        if (this.beams.length == 0) {
+          // ビームを生成する
+          var b = {
             x: player.x + player.w, // x座標
             y: player.y + player.h / 2 - 10, // y座標
             w: 20, // 幅
             h: 20, // 高さ
-            update: function() {
+            alive: true, // 生存フラグ
+            update: function () {
               // ビームを右に移動する
               this.x += player.beamSpeed;
               // ビームがキャンバス外に出たら消す
               if (this.x > canvas.width) {
-                player.beam = null;
+                this.alive = false;
               }
               // ビームがラスボスに当たったらダメージを与える
-              if (boss && this.x + this.w > boss.x && this.y + this.h > boss.y && this.x < boss.x + boss.w && this.y < boss.y + boss.h) {
+              if (
+                boss &&
+                this.x + this.w > boss.x &&
+                this.y + this.h > boss.y &&
+                this.x < boss.x + boss.w &&
+                this.y < boss.y + boss.h
+              ) {
                 bossHp--;
                 score++;
-                player.beam = null;
+                this.alive = false;
                 // ラスボスの体力が0になったらゲームクリアにする
                 if (bossHp == 0) {
                   gameState = "clear";
@@ -139,21 +155,28 @@
               // ビームが雑魚敵に当たったらダメージを与える
               for (var i = 0; i < enemies.length; i++) {
                 var e = enemies[i];
-                if (this.x + this.w > e.x && this.y + this.h > e.y && this.x < e.x + e.w && this.y < e.y + e.h) {
+                if (
+                  this.x + this.w > e.x &&
+                  this.y + this.h > e.y &&
+                  this.x < e.x + e.w &&
+                  this.y < e.y + e.h
+                ) {
                   e.alive = false;
                   score++;
-                  player.beam = null;
+                  this.alive = false;
                   break;
                 }
               }
             },
-            draw: function() {
+            draw: function () {
               // ビームの画像を描画する
               ctx.drawImage(noba, this.x, this.y, this.w, this.h);
-            }
+            },
           };
+          // 配列に追加する
+          player.beams.push(b);
         }
-      }
+      },
     };
 
     // ラスボスのオブジェクト
@@ -164,7 +187,7 @@
       h: 200, // 高さ
       speed: 2, // 移動速度
       dir: -1, // 移動方向（-1か1）
-      update: function() {
+      update: function () {
         // ラスボスを上下に揺らす
         this.y += this.speed * this.dir;
         if (this.y < 0 || this.y > canvas.height - this.h) {
@@ -176,7 +199,7 @@
           player.alive = false;
         }
       },
-      draw: function() {
+      draw: function () {
         // ラスボスの画像を描画する
         ctx.drawImage(bocydium, this.x, this.y, this.w, this.h);
       }
@@ -200,7 +223,7 @@
         h: 50, // 高さ
         speed: 5, // 移動速度
         alive: true, // 生存フラグ
-        update: function() {
+        update: function () {
           // 雑魚敵を左に移動する
           this.x -= this.speed;
           // 雑魚敵がキャンバス外に出たら消す
@@ -213,7 +236,7 @@
             player.alive = false;
           }
         },
-        draw: function() {
+        draw: function () {
           // 雑魚敵の画像を描画する
           ctx.drawImage(enemy, this.x, this.y, this.w, this.h);
         }
@@ -309,4 +332,5 @@
     updateGame();
   </script>
 </body>
+
 </html>
