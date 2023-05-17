@@ -120,62 +120,59 @@
         }
       },
       shoot: function () {
-        // ビームがなければ生成する
-        if (this.beams.length == 0) {
-          // ビームを生成する
-          var b = {
-            x: player.x + player.w, // x座標
-            y: player.y + player.h / 2 - 10, // y座標
-            w: 20, // 幅
-            h: 20, // 高さ
-            alive: true, // 生存フラグ
-            update: function () {
-              // ビームを右に移動する
-              this.x += player.beamSpeed;
-              // ビームがキャンバス外に出たら消す
-              if (this.x > canvas.width) {
-                this.alive = false;
+        // ビームを生成する
+        var b = {
+          x: player.x + player.w, // x座標
+          y: player.y + player.h / 2 - 10, // y座標
+          w: 20, // 幅
+          h: 20, // 高さ
+          alive: true, // 生存フラグ
+          update: function () {
+            // ビームを右に移動する
+            this.x += player.beamSpeed;
+            // ビームがキャンバス外に出たら消す
+            if (this.x > canvas.width) {
+              this.alive = false;
+            }
+            // ビームがラスボスに当たったらダメージを与える
+            if (
+              boss &&
+              this.x + this.w > boss.x &&
+              this.y + this.h > boss.y &&
+              this.x < boss.x + boss.w &&
+              this.y < boss.y + boss.h
+            ) {
+              bossHp--;
+              score++;
+              this.alive = false;
+              // ラスボスの体力が0になったらゲームクリアにする
+              if (bossHp == 0) {
+                gameState = "clear";
               }
-              // ビームがラスボスに当たったらダメージを与える
+            }
+            // ビームが雑魚敵に当たったらダメージを与える
+            for (var i = 0; i < enemies.length; i++) {
+              var e = enemies[i];
               if (
-                boss &&
-                this.x + this.w > boss.x &&
-                this.y + this.h > boss.y &&
-                this.x < boss.x + boss.w &&
-                this.y < boss.y + boss.h
+                this.x + this.w > e.x &&
+                this.y + this.h > e.y &&
+                this.x < e.x + e.w &&
+                this.y < e.y + e.h
               ) {
-                bossHp--;
+                e.alive = false;
                 score++;
                 this.alive = false;
-                // ラスボスの体力が0になったらゲームクリアにする
-                if (bossHp == 0) {
-                  gameState = "clear";
-                }
+                break;
               }
-              // ビームが雑魚敵に当たったらダメージを与える
-              for (var i = 0; i < enemies.length; i++) {
-                var e = enemies[i];
-                if (
-                  this.x + this.w > e.x &&
-                  this.y + this.h > e.y &&
-                  this.x < e.x + e.w &&
-                  this.y < e.y + e.h
-                ) {
-                  e.alive = false;
-                  score++;
-                  this.alive = false;
-                  break;
-                }
-              }
-            },
-            draw: function () {
-              // ビームの画像を描画する
-              ctx.drawImage(noba, this.x, this.y, this.w, this.h);
-            },
-          };
-          // 配列に追加する
-          player.beams.push(b);
-        }
+            }
+          },
+          draw: function () {
+            // ビームの画像を描画する
+            ctx.drawImage(noba, this.x, this.y, this.w, this.h);
+          },
+        };
+        // 配列に追加する
+        player.beams.push(b);
       },
     };
 
