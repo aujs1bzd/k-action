@@ -1,0 +1,376 @@
+<html>
+
+<head>
+  <style>
+    canvas {
+      border: 1px solid black;
+      width: 100%;
+      /*幅を100%にする*/
+      height: 100%;
+      /*高さを100%にする*/
+    }
+  </style>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="IMG_2363.png" />
+</head>
+
+<body>
+  <audio id="audio" src="bb.mp3"></audio>
+
+  <canvas id="canvas"></canvas>
+  <script>
+    // JSファイルでaudio要素を取得する
+    var audio = document.getElementById("audio");
+
+    // 画面に触れたときのイベントリスナーを登録する
+    document.addEventListener("touchstart", function () {
+      // audio要素のplayメソッドを呼び出す
+      audio.play();
+    });
+
+    // マウスを動かしたときのイベントリスナーを登録する
+    document.addEventListener("mousemove", function () {
+      // audio要素のplayメソッドを呼び出す
+      audio.play();
+    });
+
+    // キャンバスとコンテキストを取得
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+
+    // キャンバスのサイズをウィンドウのサイズに合わせる
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // ウィンドウのサイズが変わったらキャンバスのサイズも変更する
+    window.addEventListener("resize", function () {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // 画像と音声を読み込む
+    var kouki = new Image();
+    kouki.src = "kouki.jpg";
+    var bocydium = new Image();
+    bocydium.src = "bocydium.jpg";
+    var enemy = new Image();
+    enemy.src = "IMG_2366.png";
+    var noba = new Image();
+    noba.src = "noba.jpg";
+    var gameover = new Image();
+    gameover.src = "gameover.jpg";
+    var gameclear = new Image();
+    gameclear.src = "41VqRLgz8VL._AC_SX450_.jpg";
+    var bgm = new Audio();
+    bgm.src = "bb.mp3";
+
+    // ゲームの状態を管理する変数
+    var gameState = "start"; // start, play, over, clear
+    var score = 0; // スコア
+    var bossHp = 1000000000000000; // ラスボスの体力
+    var bossMaxHp = 1000000000000000; // ラスボスの最大体力
+
+
+
+    // プレイヤーのオブジェクト
+    var player = {
+      x: 100, // x座標
+      y: 300, // y座標
+      w: 100, // 幅
+      h: 100, // 高さ
+      speed: 5, // 移動速度
+      beams: [], // ビームの配列
+      beamSpeed: 10, // ビームの速度
+      alive: true, // 生存フラグ
+      update: function () {
+        // タッチパネルの場合はドラッグで移動する
+        if ("ontouchstart" in window) {
+          canvas.addEventListener("touchmove", function (e) {
+            e.preventDefault();
+            var touch = e.touches[0];
+            player.x = touch.clientX - player.w / 2;
+            player.y = touch.clientY - player.h / 2;
+          });
+          canvas.addEventListener("touchstart", function (e) {
+            e.preventDefault();
+            player.shoot();
+          });
+        } else {
+          // マウスの場合はカーソルに追従する
+          canvas.addEventListener("mousemove", function (e) {
+            player.x = e.clientX - player.w / 2;
+            player.y = e.clientY - player.h / 2;
+          });
+          canvas.addEventListener("mousedown", function (e) {
+            player.shoot();
+          });
+        }
+        // プレイヤーの座標をキャンバス内に制限する
+        if (player.x < 0) {
+          player.x = 0;
+        }
+        if (player.x > canvas.width - player.w) {
+          player.x = canvas.width - player.w;
+        }
+        if (player.y < 0) {
+          player.y = 0;
+        }
+        if (player.y > canvas.height - player.h) {
+          player.y = canvas.height - player.h;
+        }
+        // ビームがあれば更新する
+        for (var i = 0; i < this.beams.length; i++) {
+          var b = this.beams[i];
+          b.update();
+          // 生存フラグがfalseなら配列から削除する
+          if (!b.alive) {
+            this.beams.splice(i, 1);
+            i--;
+          }
+        }
+      },
+      draw: function () {
+        // プレイヤーの画像を描画する
+        ctx.drawImage(kouki, player.x, player.y, player.w, player.h);
+        // ビームがあれば描画する
+        for (var i = 0; i < this.beams.length; i++) {
+          var b = this.beams[i];
+          b.draw();
+        }
+      },
+      shoot: function () {
+        // ビームを生成する
+        var b = {
+          x: player.x + player.w, // x座標
+          y: player.y + player.h / 2 - 10, // y座標
+          w: 20, // 幅
+          h: 20, // 高さ
+          alive: true, // 生存フラグ
+          update: function () {
+            // ビームを右に移動する
+            this.x += player.beamSpeed;
+            // ビームがキャンバス外に出たら消す
+            if (this.x > canvas.width) {
+              this.alive = false;
+            }
+            // ビームが敵に当たったかどうかを判定する部分を最後に移動させる
+            // ビームがラスボスに当たったらダメージを与える
+            if (
+              boss &&
+              this.x + this.w > boss.x &&
+              this.y + this.h > boss.y &&
+              this.x < boss.x + boss.w &&
+              this.y < boss.y + boss.h
+            ) {
+              // ビームのダメージを1に固定する
+              var beamDamage = 1;
+              // ラスボスの体力をビームのダメージ分だけ減らす
+              bossHp = bossHp - beamDamage;
+              // スコアをビームのダメージ分だけ増やす
+              score = score + beamDamage;
+              this.alive = false;
+              // ラスボスの体力が0になったらゲームクリアにする
+              if (bossHp == 0) {
+                gameState = "clear";
+              }
+            }
+
+            // ビームが雑魚敵に当たったらダメージを与える
+            for (var i = 0; i < enemies.length; i++) {
+              var e = enemies[i];
+              if (
+                this.x + this.w > e.x &&
+                this.y + this.h > e.y &&
+                this.x < e.x + e.w &&
+                this.y < e.y + e.h
+              ) {
+                // ビームのダメージを1に固定する
+                var beamDamage = 1;
+                // 雑魚敵の体力をビームのダメージ分だけ減らす
+                e.hp = e.hp - beamDamage;
+                // スコアをビームのダメージ分だけ増やす
+                score = score + beamDamage;
+                // 雑魚敵の体力が0以下になったら消す
+                if (e.hp <= 0) {
+                  e.alive = false;
+                }
+                this.alive = false;
+                break;
+              }
+            }
+          },
+          draw: function () {
+            // ビームの画像を描画する
+            ctx.drawImage(noba, this.x, this.y, this.w, this.h);
+          },
+        };
+
+        // 配列に追加する
+        player.beams.push(b);
+      },
+    };
+
+    // ラスボスのオブジェクト
+    var boss = {
+      x: canvas.width - 200, // x座標
+      y: canvas.height / 2 - 100, // y座標
+      w: 200, // 幅
+      h: 200, // 高さ
+      speed: 2, // 移動速度
+      dir: -1, // 移動方向（-1か1）
+      xSpeed: 5, // x軸方向の移動速度
+      xRange: 50, // x軸方向の移動範囲
+      update: function () {
+        // ラスボスを上下に揺らす
+        this.y += this.speed * this.dir;
+        if (this.y < 0 || this.y > canvas.height - this.h) {
+          this.dir *= -1;
+        }
+        // ラスボスを左右に震えさせる
+        this.x += this.xSpeed;
+        if (this.x < canvas.width - this.w - this.xRange || this.x > canvas.width - this.w) {
+          this.xSpeed *= -1;
+        }
+        // ラスボスがプレイヤーに当たったらゲームオーバーにする
+        if (player.alive && this.x < player.x + player.w && this.y < player.y + player.h && this.x + this.w > player.x && this.y + this.h > player.y) {
+          gameState = "over";
+          player.alive = false;
+        }
+      },
+      draw: function () {
+        // ラスボスの画像を描画する
+        ctx.drawImage(bocydium, this.x, this.y, this.w, this.h);
+      }
+    };
+
+    // 雑魚敵の配列
+    var enemies = [];
+
+    // 雑魚敵の生成間隔（フレーム数）
+    var enemyInterval = 60;
+
+    // 雑魚敵の生成カウンター
+    var enemyCounter = 0;
+
+    // 雑魚敵のオブジェクトを生成する関数
+    function createEnemy() {
+      var e = {
+        x: canvas.width - 50, // x座標
+        y: Math.random() * (canvas.height - 50), // y座標
+        w: 50, // 幅
+        h: 50, // 高さ
+        speed: 5, // 移動速度
+        alive: true, // 生存フラグ
+        hp: 10, // 体力（追加）
+        update: function () {
+          // 雑魚敵を左に移動する
+          this.x -= this.speed;
+          // 雑魚敵がキャンバス外に出たら消す
+          if (this.x < -this.w) {
+            this.alive = false;
+          }
+          // 雑魚敵がプレイヤーに当たったらゲームオーバーにする
+          if (player.alive && this.x < player.x + player.w && this.y < player.y + player.h && this.x + this.w > player.x && this.y + this.h > player.y) {
+            gameState = "over";
+            player.alive = false;
+          }
+        },
+        draw: function () {
+          // 雑魚敵の画像を描画する
+          ctx.drawImage(enemy, this.x, this.y, this.w, this.h);
+        }
+      };
+      // 配列に追加する
+      enemies.push(e);
+    }
+
+
+    // ゲームの更新処理を行う関数
+    function updateGame() {
+      // ゲームの状態に応じて処理を分岐する
+      switch (gameState) {
+        case "start":
+          // ゲームを開始するとBGMを再生する
+          bgm.play();
+          // ゲームの状態をplayに変更する
+          gameState = "play";
+          break;
+        case "play":
+          // プレイヤーを更新する
+          player.update();
+          // ラスボスを更新する
+          boss.update();
+          // 雑魚敵の生成カウンターを増やす
+          enemyCounter++;
+          // 一定間隔で雑魚敵を生成する
+          if (enemyCounter == enemyInterval) {
+            createEnemy();
+            enemyCounter = 0;
+          }
+          // 雑魚敵を更新する
+          for (var i = 0; i < enemies.length; i++) {
+            var e = enemies[i];
+            e.update();
+            // 生存フラグがfalseなら配列から削除する
+            if (!e.alive) {
+              enemies.splice(i, 1);
+              i--;
+            }
+          }
+          break;
+        case "over":
+          // BGMを停止する
+          bgm.pause();
+          break;
+        case "clear":
+          // BGMを停止する
+          bgm.pause();
+          break;
+      }
+      // ゲーム画面を描画する関数を呼び出す
+      drawGame();
+    }
+
+    // ゲーム画面を描画する関数
+    function drawGame() {
+      // キャンバスをクリアする
+      ctx.fillStyle = "rgb(135, 206, 235)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // ゲームの状態に応じて描画を分岐する
+      switch (gameState) {
+        case "start":
+        case "play":
+          // プレイヤーを描画する
+          player.draw();
+          // ラスボスを描画する
+          boss.draw();
+          // 雑魚敵を描画する
+          for (var i = 0; i < enemies.length; i++) {
+            var e = enemies[i];
+            e.draw();
+          }
+          // スコアとラスボスの体力を描画する
+          ctx.fillStyle = "black";
+          ctx.font = "20px Arial";
+          ctx.fillText("Score: " + score, 10, 30);
+          ctx.fillText("Boss HP: " + bossHp + "/" + bossMaxHp, 10, 60);
+          break;
+        case "over":
+          // ゲームオーバーの画像を描画する
+          ctx.drawImage(gameover, 0, 0, canvas.width, canvas.height);
+          break;
+        case "clear":
+          // ゲームクリアの画像を描画する
+          ctx.drawImage(gameclear, 0, 0, canvas.width, canvas.height);
+          break;
+      }
+      // 20ミリ秒後に再帰的に呼び出す
+      setTimeout(updateGame, 20);
+    }
+
+    // ゲームの更新処理を開始する
+    updateGame();
+  </script>
+</body>
+
+</html>
